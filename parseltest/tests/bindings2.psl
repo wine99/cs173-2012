@@ -1,0 +1,3 @@
+# not allowed to assign to undefined variable
+
+x = 1

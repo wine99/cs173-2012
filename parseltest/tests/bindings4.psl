@@ -1,0 +1,6 @@
+# assignment should change the value of the bound variable immediately
+# and return the changed value
+
+defvar x = "before" in {
+  x = "after";
+}

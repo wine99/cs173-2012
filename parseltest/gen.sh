@@ -1,0 +1,1 @@
+./debian-dist/bin/assignment1-debian --interp < $1 1> "$1.expected" 2>"$1.error"

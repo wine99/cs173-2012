@@ -1,0 +1,1 @@
+./debian-dist/bin/assignment1-debian --single $1 tests

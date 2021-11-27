@@ -142,4 +142,80 @@
 ;; This procedure interprets the given CFWAE and produces a result 
 ;; in the form of a CFWAE-Value (either a closuerV or a numV)
 (define (interp (expr : CFWAE)) : CFWAE-Value
-  )
+  (itp expr (mtEnv)))
+
+(define (itp (expr : CFWAE) (env : Env)) : CFWAE-Value
+  (type-case CFWAE expr
+    [num (n) (numV n)]
+    [id (name) (lookup name env)]
+    [binop
+     (op lhs rhs)
+     (let ([l (itp lhs env)]
+           [r (itp rhs env)])
+       (if (and (numV? l) (numV? r))
+           (numV (op (numV-n l) (numV-n r)))
+           (error 'interp "binop should be applied to number")))]
+    [with
+     (bindings body)
+     (itp body (extend-env-with bindings env))]
+    [if0
+     (c t e)
+     (let ([c-value (itp c env)])
+       (if (numV? c-value)
+           (if (= 0 (numV-n c-value))
+               (itp t env)
+               (itp e env))
+           (error 'interp "if0 only accepts number as predicate")))]
+    [fun (params body) (closureV params body env)]
+    [app
+     (f args)
+     (let ([closure (itp f env)])
+       (if (closureV? closure)
+           (itp (closureV-body closure)
+                (extend-env-app closure args env))
+           (error 'interp "app should apply to a fun")))]))
+
+(define (lookup (name : symbol) (env : Env)) : CFWAE-Value
+  (type-case Env env
+    [mtEnv () (error 'interp "unbound identifier")]
+    [anEnv (n v e)
+           (if (symbol=? n name)
+               v
+               (lookup name e))]))
+
+(define (extend-env-with bindings env)
+  (extend-env (map binding-name bindings)
+              (map (lambda (b)
+                     (itp (binding-named-expr b) env))
+                   bindings)
+              env))
+
+(define (extend-env-app closure args env)
+  (let* ([ids (closureV-params closure)]
+         [values (map (lambda (arg) (itp arg env)) args)]
+         [length-i (length ids)]
+         [length-v (length values)])
+    (cond
+      [(< length-i length-v) (error 'interp "too many arguments")]
+      [(> length-i length-v) (error 'interp "too few arguments")]
+      [else (extend-env ids values (closureV-env closure))])))
+
+(define (extend-env ids values env)
+  (if (empty? ids)
+      env
+      (extend-env (rest ids)
+                  (rest values)
+                  (anEnv (first ids) (first values) env))))
+
+(test (interp (parse '{with {{x 10} {y 20}} y}))
+      (numV 20))
+(test (interp (parse '{fun {} x}))
+      (closureV empty (id 'x) (mtEnv)))
+(test (interp (parse '((fun (x y) (with ((z (+ x y))) (if0 z x y))) 1 2)))
+      (numV 2))
+(test (interp (parse '((fun (x y) (with ((z (+ x y))) (if0 z x y))) 1 -1)))
+      (numV 1))
+(test/exn (interp (parse '((fun (x y) 0 1))))
+          "too few arguments")
+(test/exn (interp (parse '((fun (x y) 0) 1 2 3)))
+          "too many arguments")

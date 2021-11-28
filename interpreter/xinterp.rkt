@@ -153,7 +153,7 @@
      (let ([l (itp lhs env)]
            [r (itp rhs env)])
        (if (and (numV? l) (numV? r))
-           (numV (op (numV-n l) (numV-n r)))
+           (numV (do-binop op (numV-n l) (numV-n r)))
            (error 'interp "binop should be applied to number")))]
     [with
      (bindings body)
@@ -175,6 +175,12 @@
                 (extend-env-app closure args env))
            (error 'interp "app should apply to a fun")))]))
 
+(define (do-binop (op : (number number -> number)) l r) : number
+  (if (and (eq? op /)
+           (= r 0))
+      (error 'interp "division by zero")
+      (op l r)))
+    
 (define (lookup (name : symbol) (env : Env)) : CFWAE-Value
   (type-case Env env
     [mtEnv () (error 'interp "unbound identifier")]
@@ -192,20 +198,20 @@
 
 (define (extend-env-app closure args env)
   (let* ([ids (closureV-params closure)]
-         [values (map (lambda (arg) (itp arg env)) args)]
+         [vals (map (lambda (arg) (itp arg env)) args)]
          [length-i (length ids)]
-         [length-v (length values)])
+         [length-v (length vals)])
     (cond
       [(< length-i length-v) (error 'interp "too many arguments")]
       [(> length-i length-v) (error 'interp "too few arguments")]
-      [else (extend-env ids values (closureV-env closure))])))
+      [else (extend-env ids vals (closureV-env closure))])))
 
-(define (extend-env ids values env)
+(define (extend-env ids vals env)
   (if (empty? ids)
       env
       (extend-env (rest ids)
-                  (rest values)
-                  (anEnv (first ids) (first values) env))))
+                  (rest vals)
+                  (anEnv (first ids) (first vals) env))))
 
 (test (interp (parse '{with {{x 10} {y 20}} y}))
       (numV 20))
@@ -215,6 +221,8 @@
       (numV 2))
 (test (interp (parse '((fun (x y) (with ((z (+ x y))) (if0 z x y))) 1 -1)))
       (numV 1))
+(test/exn (interp (parse '(/ 1 0)))
+          "division by zero")
 (test/exn (interp (parse '((fun (x y) 0 1))))
           "too few arguments")
 (test/exn (interp (parse '((fun (x y) 0) 1 2 3)))

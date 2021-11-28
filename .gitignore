@@ -1,2 +1,4 @@
 parseltest/debian-dist
+parseltest/win32-dist
 interpreter/debian-dist
+interpreter/win32-dist

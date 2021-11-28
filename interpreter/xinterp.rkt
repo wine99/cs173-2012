@@ -34,17 +34,30 @@
            (error 'parse "invalid input")
            (if (s-exp-symbol? (first sl))
                (case (s-exp->symbol (first sl))
-                 [(+ - * /) (binop (binop-symbol->op (s-exp->symbol (first sl)))
-                                   (parse (second sl))
-                                   (parse (third sl)))]
-                 [(if0) (if0 (parse (second sl))
-                             (parse (third sl))
-                             (parse (fourth sl)))]
-                 [(with) (with (parse-bindings (second sl))
-                               (parse (third sl)))]
-                 [(fun) (fun (parse-params (second sl))
-                             (parse (third sl)))]
-                 [else (error 'parse "invalid input")])
+                 [(+ - * /)
+                  (if (= 3 (length sl))
+                      (binop (binop-symbol->op (s-exp->symbol (first sl)))
+                             (parse (second sl))
+                             (parse (third sl)))
+                      (error 'parse "invalid input"))]
+                 [(if0)
+                  (if (= 4 (length sl))
+                      (if0 (parse (second sl))
+                           (parse (third sl))
+                           (parse (fourth sl)))
+                      (error 'parse "invalid input"))]
+                 [(with)
+                  (if (= 3 (length sl))
+                      (with (parse-bindings (second sl))
+                            (parse (third sl)))
+                      (error 'parse "invalid input"))]
+                 [(fun)
+                  (if (= 3 (length sl))
+                      (fun (parse-params (second sl))
+                           (parse (third sl)))
+                      (error 'parse "invalid input"))]
+                 [else (app (parse (first sl))
+                            (parse-args (rest sl)))])
                (app (parse (first sl))
                     (parse-args (rest sl))))))]))
 
@@ -221,9 +234,23 @@
       (numV 2))
 (test (interp (parse '((fun (x y) (with ((z (+ x y))) (if0 z x y))) 1 -1)))
       (numV 1))
+(test (interp (parse (quote (with ((f (fun (x y) (+ x y)))) (f (f 1 2) 3)))))
+      (numV 6))
 (test/exn (interp (parse '(/ 1 0)))
           "division by zero")
-(test/exn (interp (parse '((fun (x y) 0 1))))
+(test/exn (interp (parse '((fun (x y) 0) 1)))
           "too few arguments")
 (test/exn (interp (parse '((fun (x y) 0) 1 2 3)))
           "too many arguments")
+(test
+ (interp
+  (parse
+   (quote
+    (with ((y (fun (proc)
+                   ((fun (x) (proc (fun (arg) ((x x) arg))))
+                    (fun (x) (proc (fun (arg) ((x x) arg))))))))
+          (with ((fact (fun (rec)
+                            (fun (n) (if0 n 1 (* n (rec (+ n -1))))))))
+                (with ((! (y fact)))
+                      (! 5)))))))
+ (numV 120))

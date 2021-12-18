@@ -1,3 +1,6 @@
+parseltest/win32-dist
 parseltest/debian-dist
 interpreter/debian-dist
 interpreter/win32-dist
+parseldesugar/debian-dist
+parseldesugar/win32-dist

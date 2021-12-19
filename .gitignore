@@ -4,3 +4,5 @@ interpreter/debian-dist
 interpreter/win32-dist
 parseldesugar/debian-dist
 parseldesugar/win32-dist
+parselcore/debian-dist
+parselcore/win32-dist
